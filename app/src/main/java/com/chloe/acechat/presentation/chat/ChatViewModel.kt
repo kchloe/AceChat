@@ -29,14 +29,9 @@ class ChatViewModel(
     private val modelPath: String = DEFAULT_MODEL_PATH,
 ) : AndroidViewModel(application) {
 
-    // When the model lives in /data/local/tmp the app process has no write access to that
-    // directory. LiteRT-LM needs a writable cache dir for compiled model artifacts, so we
-    // redirect to external storage in that case (same logic as Gallery's LlmChatModelHelper).
-    private val cacheDir: String? =
-        if (modelPath.startsWith("/data/local/tmp"))
-            application.getExternalFilesDir(null)?.absolutePath
-        else
-            null
+    // LiteRT-LM needs a writable cache directory for compiled model artifacts (XNNPack, etc).
+    // We use the app's external files directory which is guaranteed to be writable.
+    private val cacheDir: String? = application.getExternalFilesDir(null)?.absolutePath
 
     private val llmEngine = LlmEngine(modelPath = modelPath, cacheDir = cacheDir)
 

@@ -19,10 +19,6 @@ import kotlinx.coroutines.flow.callbackFlow
 
 private const val TAG = "LlmEngine"
 
-// Default path where the model file should be placed on the device.
-// Push the .litertlm file here: adb push model.litertlm /data/local/tmp/gemma3-1b-it.litertlm
-const val DEFAULT_MODEL_PATH = "/data/local/tmp/gemma3-1b-it.litertlm"
-
 private val SYSTEM_PROMPT = """
 You are an English conversation tutor. Your role is to:
 1. Have natural conversations with the user in English only
@@ -36,7 +32,7 @@ You are an English conversation tutor. Your role is to:
 
 @OptIn(ExperimentalApi::class)
 class LlmEngine(
-    private val modelPath: String = DEFAULT_MODEL_PATH,
+    private val modelPath: String,
     // Must be a writable directory for engine cache files (XNNPack, quantization cache, etc.).
     // When modelPath starts with /data/local/tmp, the app has no write access to that directory,
     // so the caller must supply a writable path (e.g. context.getExternalFilesDir(null)).

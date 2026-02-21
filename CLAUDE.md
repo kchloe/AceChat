@@ -40,7 +40,7 @@ components/ # 공통 UI 컴포넌트
 
 ## 마일스톤 진행 현황
 - [x] M0: 프로젝트 생성, Gallery clone, Claude Code 설치
-- [ ] M1: 프로젝트 셋업 (의존성, 폴더구조, 퍼미션)
+- [x] M1: 프로젝트 셋업 (의존성, 폴더구조, 퍼미션)
 - [ ] M2: LiteRT-LM 연동 + 시스템 프롬프트
 - [ ] M3: Chat UI
 - [ ] M4: STT 연동

@@ -52,7 +52,7 @@ class LlmEngine(
 
         val engineConfig = EngineConfig(
             modelPath = modelPath,
-            backend = Backend.GPU,
+            backend = Backend.CPU, //GPU 시도 후 실패하면 CPU로 폴백하도록 수정
             visionBackend = null,
             audioBackend = null,
             maxNumTokens = 1024,

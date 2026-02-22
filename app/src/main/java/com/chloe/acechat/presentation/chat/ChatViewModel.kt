@@ -5,18 +5,22 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.chloe.acechat.data.llm.DEFAULT_MODEL_PATH
 import com.chloe.acechat.data.llm.LlmEngine
+import com.chloe.acechat.data.llm.MODEL_FILE_NAME
+import com.chloe.acechat.data.stt.SpeechRecognizerManager
+import com.chloe.acechat.data.stt.SttState
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.domain.model.MessageRole
 import com.chloe.acechat.domain.model.MessageType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.UUID
 
 private const val TAG = "ChatViewModel"
@@ -26,14 +30,19 @@ private const val CORRECTION_MARKER = "✏️ Correction:"
 
 class ChatViewModel(
     application: Application,
-    private val modelPath: String = DEFAULT_MODEL_PATH,
+    modelPathOverride: String? = null,
 ) : AndroidViewModel(application) {
+
+    private val modelPath: String = modelPathOverride ?: File(
+        application.getExternalFilesDir(null), "models/$MODEL_FILE_NAME"
+    ).absolutePath
 
     // LiteRT-LM needs a writable cache directory for compiled model artifacts (XNNPack, etc).
     // We use the app's external files directory which is guaranteed to be writable.
     private val cacheDir: String? = application.getExternalFilesDir(null)?.absolutePath
 
     private val llmEngine = LlmEngine(modelPath = modelPath, cacheDir = cacheDir)
+    private val speechRecognizerManager = SpeechRecognizerManager(application)
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val uiState: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -41,8 +50,12 @@ class ChatViewModel(
     private val _conversationState = MutableStateFlow<ConversationState>(ConversationState.Loading)
     val conversationState: StateFlow<ConversationState> = _conversationState.asStateFlow()
 
+    /** SpeechRecognizerManager의 상태를 그대로 노출 */
+    val sttState: StateFlow<SttState> = speechRecognizerManager.sttState
+
     init {
         initializeEngine()
+        observeSttResults()
     }
 
     // -----------------------------------------------------------------------------------------
@@ -61,6 +74,48 @@ class ChatViewModel(
                     ConversationState.Error(e.message ?: "Failed to initialize model")
                 }
             }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // STT
+    // -----------------------------------------------------------------------------------------
+
+    /**
+     * SttState를 구독하여:
+     * - [SttState.Result]: 텍스트가 있으면 sendMessage() 호출 후 Idle 복귀
+     * - [SttState.Error]: 1.5초 후 Idle 복귀
+     */
+    private fun observeSttResults() {
+        viewModelScope.launch {
+            speechRecognizerManager.sttState.collect { state ->
+                when (state) {
+                    is SttState.Result -> {
+                        if (state.text.isNotEmpty()) {
+                            sendMessage(state.text)
+                        }
+                        speechRecognizerManager.resetToIdle()
+                    }
+                    is SttState.Error -> {
+                        delay(1500)
+                        speechRecognizerManager.resetToIdle()
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    /**
+     * 마이크 버튼 탭 핸들러.
+     * - [ConversationState.Idle]일 때만 동작
+     * - 이미 [SttState.Listening] 상태면 무시
+     */
+    fun onMicTapped() {
+        if (_conversationState.value !is ConversationState.Idle) return
+        if (speechRecognizerManager.sttState.value is SttState.Listening) return
+        viewModelScope.launch(Dispatchers.Main) {
+            speechRecognizerManager.startListening()
         }
     }
 
@@ -172,6 +227,7 @@ class ChatViewModel(
     override fun onCleared() {
         super.onCleared()
         llmEngine.close()
+        speechRecognizerManager.destroy()
     }
 
     // -----------------------------------------------------------------------------------------
@@ -187,10 +243,10 @@ class ChatViewModel(
 
     class Factory(
         private val application: Application,
-        private val modelPath: String = DEFAULT_MODEL_PATH,
+        private val modelPathOverride: String? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            ChatViewModel(application, modelPath) as T
+            ChatViewModel(application, modelPathOverride) as T
     }
 }

@@ -1,5 +1,10 @@
 package com.chloe.acechat.presentation.chat
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,11 +31,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chloe.acechat.data.stt.SttState
 import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.presentation.components.MessageBubble
 import com.chloe.acechat.presentation.components.MicButton
@@ -44,10 +55,32 @@ fun ChatScreen(
 ) {
     val messages by viewModel.uiState.collectAsStateWithLifecycle()
     val conversationState by viewModel.conversationState.collectAsStateWithLifecycle()
+    val sttState by viewModel.sttState.collectAsStateWithLifecycle()
 
     val isLoading = conversationState is ConversationState.Loading
     val isIdle = conversationState is ConversationState.Idle
     val isError = conversationState is ConversationState.Error
+
+    // ── 런타임 권한 처리 ────────────────────────────────────────────────────────
+    val context = LocalContext.current
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { isGranted ->
+        hasAudioPermission = isGranted
+    }
+    // 화면 최초 진입 시 권한이 없으면 요청
+    LaunchedEffect(Unit) {
+        if (!hasAudioPermission) {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+    // ───────────────────────────────────────────────────────────────────────────
 
     val listState = rememberLazyListState()
 
@@ -140,14 +173,36 @@ fun ChatScreen(
                             }
                         }
 
-                        // Placeholder for STT live transcript (implemented in M4)
+                        // ── STT 실시간 미리보기 ────────────────────────────────────
+                        val previewText = when (val s = sttState) {
+                            is SttState.Listening -> "Listening..."
+                            is SttState.PartialResult -> s.text
+                            else -> null
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .defaultMinSize(minHeight = 48.dp),
-                        )
+                                .defaultMinSize(minHeight = 48.dp)
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (previewText != null) {
+                                Text(
+                                    text = previewText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                        // ─────────────────────────────────────────────────────────
 
-                        // Mic button — push-to-talk (STT connected in M4)
+                        // ── 마이크 버튼 ───────────────────────────────────────────
+                        val micButtonState = when {
+                            sttState is SttState.Listening -> MicButtonState.LISTENING
+                            isIdle -> MicButtonState.IDLE
+                            else -> MicButtonState.DISABLED
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -155,11 +210,26 @@ fun ChatScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             MicButton(
-                                state = if (isIdle) MicButtonState.IDLE else MicButtonState.DISABLED,
-                                onPress = { /* M4: start recording */ },
-                                onRelease = { /* M4: stop recording and send */ },
+                                state = micButtonState,
+                                hasPermission = hasAudioPermission,
+                                onTap = { viewModel.onMicTapped() },
                             )
                         }
+
+                        // 권한 없음 안내 문구
+                        if (!hasAudioPermission) {
+                            Text(
+                                text = "Microphone permission is required to use voice input.",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                                    .padding(bottom = 12.dp),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        // ─────────────────────────────────────────────────────────
                     }
                 }
             }

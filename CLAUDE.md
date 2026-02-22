@@ -44,7 +44,7 @@ components/ # 공통 UI 컴포넌트
 - [x] M2: LiteRT-LM 연동 + 시스템 프롬프트
 - [x] M3: Chat UI
 - [x] M4: 모델 다운로드 관련 구현
-- [ ] M5: STT 연동
+- [x] M5: STT 연동
 - [ ] M6: TTS 연동
 - [ ] M7: 파이프라인 통합 + UX 완성
 - [ ] M8: 테스트 + 마무리

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 
@@ -144,8 +145,8 @@ class ChatViewModel(
         val trimmed = userInput.trim()
         if (trimmed.isEmpty()) return
 
-        // Add USER message immediately.
-        _messages.update { it + ChatMessage(role = MessageRole.USER, content = trimmed) }
+        // USER 메시지는 즉시 노출.
+        _messages.update { it + ChatMessage(role = MessageRole.USER, content = trimmed, isVisible = true) }
         _conversationState.update { ConversationState.Loading }
 
         viewModelScope.launch(Dispatchers.Default) {
@@ -154,69 +155,47 @@ class ChatViewModel(
             var streamingStarted = false
 
             try {
+                // 스트리밍 토큰 수신 — UI에 반영하지 않고 누적만 함.
                 llmEngine.sendMessage(trimmed).collect { token ->
                     accumulated += token
-
                     if (!streamingStarted) {
-                        // First token: add the BOT message and switch to STREAMING state.
                         streamingStarted = true
-                        _messages.update {
-                            it + ChatMessage(
-                                id = botId,
-                                role = MessageRole.BOT,
-                                content = processResponse(accumulated),
-                                isStreaming = true,
-                            )
-                        }
                         _conversationState.update { ConversationState.Streaming }
-                    } else {
-                        // Subsequent tokens: update content in place.
-                        _messages.update { messages ->
-                            messages.map { msg ->
-                                if (msg.id == botId)
-                                    msg.copy(content = processResponse(accumulated))
-                                else
-                                    msg
-                            }
-                        }
                     }
                 }
 
-                // Flow completed normally — finalize the BOT message.
+                // 스트리밍 완료 — 최종 메시지 확정.
                 val finalContent = processResponse(accumulated)
                 val messageType =
                     if (finalContent.contains(CORRECTION_MARKER)) MessageType.CORRECTION
                     else MessageType.NORMAL
 
-                if (streamingStarted) {
-                    _messages.update { messages ->
-                        messages.map { msg ->
-                            if (msg.id == botId)
-                                msg.copy(content = finalContent, type = messageType, isStreaming = false)
-                            else
-                                msg
-                        }
-                    }
+                // BOT 메시지를 invisible 상태로 추가.
+                _messages.update {
+                    it + ChatMessage(
+                        id = botId,
+                        role = MessageRole.BOT,
+                        content = finalContent,
+                        type = messageType,
+                        isVisible = false,
+                    )
                 }
-                _conversationState.update { ConversationState.Idle }
 
-                // 스트리밍 완료 후 TTS로 응답 읽기 (메인 스레드에서 호출)
+                // 메인 스레드에서 TTS 시작 → 말풍선 노출 → Idle 전환을 한 번에 처리.
                 val ttsText = extractTtsText(finalContent, messageType)
-                if (ttsText.isNotEmpty()) {
-                    viewModelScope.launch(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
+                    if (ttsText.isNotEmpty()) {
                         ttsManager.speak(ttsText)
                     }
+                    // TTS 큐에 올라간 직후 말풍선을 노출하고 상태를 Idle로 전환.
+                    _messages.update { messages ->
+                        messages.map { if (it.id == botId) it.copy(isVisible = true) else it }
+                    }
+                    _conversationState.update { ConversationState.Idle }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Inference error", e)
-                if (streamingStarted) {
-                    _messages.update { messages ->
-                        messages.map { msg ->
-                            if (msg.id == botId) msg.copy(isStreaming = false) else msg
-                        }
-                    }
-                }
                 _conversationState.update {
                     ConversationState.Error(e.message ?: "Inference failed")
                 }

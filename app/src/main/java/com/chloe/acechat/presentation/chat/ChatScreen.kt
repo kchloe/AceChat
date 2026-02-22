@@ -47,6 +47,7 @@ import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.presentation.components.MessageBubble
 import com.chloe.acechat.presentation.components.MicButton
 import com.chloe.acechat.presentation.components.MicButtonState
+import com.chloe.acechat.presentation.components.ThinkingBubble
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,8 +61,13 @@ fun ChatScreen(
     val ttsState by viewModel.ttsState.collectAsStateWithLifecycle()
 
     val isLoading = conversationState is ConversationState.Loading
+    val isStreaming = conversationState is ConversationState.Streaming
     val isIdle = conversationState is ConversationState.Idle
     val isError = conversationState is ConversationState.Error
+    val isThinking = isLoading || isStreaming
+
+    // isVisible=false인 BOT 메시지(스트리밍 완료 직전까지 숨겨진 메시지)는 렌더링하지 않음.
+    val visibleMessages = messages.filter { it.isVisible }
 
     // ── 런타임 권한 처리 ────────────────────────────────────────────────────────
     val context = LocalContext.current
@@ -86,11 +92,11 @@ fun ChatScreen(
 
     val listState = rememberLazyListState()
 
-    // Auto-scroll to bottom when a new message is added or streaming content grows
-    val lastMessageContent = messages.lastOrNull()?.content
-    LaunchedEffect(messages.size, lastMessageContent) {
-        if (messages.isNotEmpty()) {
-            listState.scrollToItem(messages.size - 1)
+    // 새 메시지가 표시되거나 ThinkingBubble이 나타날 때 자동 스크롤.
+    LaunchedEffect(visibleMessages.size, isThinking) {
+        val totalItems = visibleMessages.size + if (isThinking) 1 else 0
+        if (totalItems > 0) {
+            listState.scrollToItem(totalItems - 1)
         }
     }
 
@@ -120,7 +126,7 @@ fun ChatScreen(
         ) {
             when {
                 // Full-screen loading while the engine initialises (no messages yet)
-                isLoading && messages.isEmpty() -> {
+                isLoading && visibleMessages.isEmpty() -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.Center,
@@ -137,7 +143,7 @@ fun ChatScreen(
                 }
 
                 // Full-screen error when the engine failed to initialise
-                isError && messages.isEmpty() -> {
+                isError && visibleMessages.isEmpty() -> {
                     val errorMsg = (conversationState as ConversationState.Error).message
                     Column(
                         modifier = Modifier
@@ -170,8 +176,13 @@ fun ChatScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(messages, key = { it.id }) { message ->
+                            items(visibleMessages, key = { it.id }) { message ->
                                 MessageBubble(message = message)
+                            }
+                            if (isThinking) {
+                                item(key = "thinking") {
+                                    ThinkingBubble()
+                                }
                             }
                         }
 

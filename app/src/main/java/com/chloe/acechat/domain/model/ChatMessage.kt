@@ -18,5 +18,6 @@ data class ChatMessage(
     val type: MessageType = MessageType.NORMAL,
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val isStreaming: Boolean = false,
+    /** false인 동안 UI에 렌더링되지 않는다. BOT 메시지는 TTS 시작 직전까지 false로 유지된다. */
+    val isVisible: Boolean = false,
 )

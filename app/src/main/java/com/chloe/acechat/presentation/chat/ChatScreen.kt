@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chloe.acechat.data.stt.SttState
+import com.chloe.acechat.data.tts.TtsState
 import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.presentation.components.MessageBubble
 import com.chloe.acechat.presentation.components.MicButton
@@ -56,6 +57,7 @@ fun ChatScreen(
     val messages by viewModel.uiState.collectAsStateWithLifecycle()
     val conversationState by viewModel.conversationState.collectAsStateWithLifecycle()
     val sttState by viewModel.sttState.collectAsStateWithLifecycle()
+    val ttsState by viewModel.ttsState.collectAsStateWithLifecycle()
 
     val isLoading = conversationState is ConversationState.Loading
     val isIdle = conversationState is ConversationState.Idle
@@ -199,6 +201,7 @@ fun ChatScreen(
 
                         // ── 마이크 버튼 ───────────────────────────────────────────
                         val micButtonState = when {
+                            ttsState is TtsState.Speaking -> MicButtonState.DISABLED
                             sttState is SttState.Listening -> MicButtonState.LISTENING
                             isIdle -> MicButtonState.IDLE
                             else -> MicButtonState.DISABLED

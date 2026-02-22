@@ -9,6 +9,8 @@ import com.chloe.acechat.data.llm.LlmEngine
 import com.chloe.acechat.data.llm.MODEL_FILE_NAME
 import com.chloe.acechat.data.stt.SpeechRecognizerManager
 import com.chloe.acechat.data.stt.SttState
+import com.chloe.acechat.data.tts.TtsManager
+import com.chloe.acechat.data.tts.TtsState
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.domain.model.MessageRole
@@ -43,6 +45,8 @@ class ChatViewModel(
 
     private val llmEngine = LlmEngine(modelPath = modelPath, cacheDir = cacheDir)
     private val speechRecognizerManager = SpeechRecognizerManager(application)
+    // ViewModel은 메인 스레드에서 생성되므로 TtsManager 생성도 메인 스레드에서 실행된다.
+    private val ttsManager = TtsManager(application)
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val uiState: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -52,6 +56,9 @@ class ChatViewModel(
 
     /** SpeechRecognizerManager의 상태를 그대로 노출 */
     val sttState: StateFlow<SttState> = speechRecognizerManager.sttState
+
+    /** TtsManager의 상태를 그대로 노출 */
+    val ttsState: StateFlow<TtsState> = ttsManager.ttsState
 
     init {
         initializeEngine()
@@ -193,6 +200,14 @@ class ChatViewModel(
                 }
                 _conversationState.update { ConversationState.Idle }
 
+                // 스트리밍 완료 후 TTS로 응답 읽기 (메인 스레드에서 호출)
+                val ttsText = extractTtsText(finalContent, messageType)
+                if (ttsText.isNotEmpty()) {
+                    viewModelScope.launch(Dispatchers.Main) {
+                        ttsManager.speak(ttsText)
+                    }
+                }
+
             } catch (e: Exception) {
                 Log.e(TAG, "Inference error", e)
                 if (streamingStarted) {
@@ -217,6 +232,7 @@ class ChatViewModel(
         val state = _conversationState.value
         if (state is ConversationState.Loading || state is ConversationState.Streaming) return
 
+        ttsManager.stop()
         viewModelScope.launch(Dispatchers.Default) {
             _messages.update { emptyList() }
             llmEngine.resetConversation()
@@ -228,6 +244,7 @@ class ChatViewModel(
         super.onCleared()
         llmEngine.close()
         speechRecognizerManager.destroy()
+        ttsManager.destroy()
     }
 
     // -----------------------------------------------------------------------------------------
@@ -236,6 +253,15 @@ class ChatViewModel(
 
     /** Converts literal \n sequences that the LLM may output into real newlines. */
     private fun processResponse(text: String): String = text.replace("\\n", "\n")
+
+    /**
+     * TTS로 읽을 텍스트를 반환한다.
+     * - [MessageType.CORRECTION]: [CORRECTION_MARKER] 앞의 conversational reply 부분만 반환
+     * - [MessageType.NORMAL]: 전체 텍스트 반환
+     */
+    private fun extractTtsText(content: String, type: MessageType): String =
+        if (type == MessageType.CORRECTION) content.substringBefore(CORRECTION_MARKER).trim()
+        else content
 
     // -----------------------------------------------------------------------------------------
     // Factory

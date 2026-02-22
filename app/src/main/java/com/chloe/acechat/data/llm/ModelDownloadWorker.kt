@@ -28,8 +28,8 @@ const val KEY_MODEL_DOWNLOAD_PROGRESS = "model_download_progress"
 const val KEY_MODEL_DOWNLOAD_ERROR = "model_download_error"
 
 // Model file details
-const val MODEL_FILE_NAME = "gemma3-1b-it.litertlm"
-const val MODEL_DOWNLOAD_URL = "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/42d538a932e8d5b12e6b3b455f5572560bd60b2c/gemma3-1b-it-int4.litertlm"
+const val MODEL_FILE_NAME = "gemma-3n-e4b-it-int4.litertlm"
+const val MODEL_DOWNLOAD_URL = "https://huggingface.co/google/gemma-3n-E4B-it-litert-lm/resolve/main/gemma-3n-E4B-it-int4.litertlm"
 class ModelDownloadWorker(
     context: Context,
     params: WorkerParameters,

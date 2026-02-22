@@ -202,7 +202,7 @@ fun ChatScreen(
                         // ── 마이크 버튼 ───────────────────────────────────────────
                         val micButtonState = when {
                             ttsState is TtsState.Speaking -> MicButtonState.DISABLED
-                            sttState is SttState.Listening -> MicButtonState.LISTENING
+                            sttState is SttState.Listening || sttState is SttState.PartialResult -> MicButtonState.LISTENING
                             isIdle -> MicButtonState.IDLE
                             else -> MicButtonState.DISABLED
                         }

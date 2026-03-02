@@ -5,12 +5,13 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.chloe.acechat.data.llm.LlmEngine
 import com.chloe.acechat.data.llm.MODEL_FILE_NAME
+import com.chloe.acechat.data.llm.OnDeviceLlmEngine
 import com.chloe.acechat.data.stt.SpeechRecognizerManager
 import com.chloe.acechat.data.stt.SttState
 import com.chloe.acechat.data.tts.TtsManager
 import com.chloe.acechat.data.tts.TtsState
+import com.chloe.acechat.domain.llm.LlmEngineInterface
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.domain.model.MessageRole
@@ -44,7 +45,8 @@ class ChatViewModel(
     // We use the app's external files directory which is guaranteed to be writable.
     private val cacheDir: String? = application.getExternalFilesDir(null)?.absolutePath
 
-    private val llmEngine = LlmEngine(modelPath = modelPath, cacheDir = cacheDir)
+    // Exposed as internal var to allow injection in tests or future AppContainer migration (M10).
+    internal var llmEngine: LlmEngineInterface = OnDeviceLlmEngine(modelPath = modelPath, cacheDir = cacheDir)
     private val speechRecognizerManager = SpeechRecognizerManager(application)
     // ViewModel은 메인 스레드에서 생성되므로 TtsManager 생성도 메인 스레드에서 실행된다.
     private val ttsManager = TtsManager(application)

@@ -1,6 +1,7 @@
 package com.chloe.acechat.data.llm
 
 import android.util.Log
+import com.chloe.acechat.domain.llm.LlmEngineInterface
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -13,89 +14,64 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.SamplerConfig
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.withContext
 
-private const val TAG = "LlmEngine"
-
-private val SYSTEM_PROMPT = """
-You are Grace, a friendly native English speaker having a casual conversation.
-
-Your personality:
-- Warm, encouraging, and fun to talk to
-- Genuinely interested in what the user says
-- Keep responses short (2-3 sentences max) and always ask one follow-up question
-
-Response format rules:
-- Always start with your natural conversational reply
-- If the user made a grammar mistake, append a correction section EXACTLY like this:
-
-✏️ Correction:
-You said "[original]" → Try "[corrected]" instead. [One sentence explanation]
-
-- If there is NO grammar mistake, do NOT include the ✏️ Correction: section at all
-- Never mention grammar inside your conversational reply
-
-Examples:
-
-User: "I'm exciting about the trip"
-Reply: "Oh you're excited about the trip? That sounds amazing! Where are you going?
-✏️ Correction:
-You said "I'm exciting" → Try "I'm excited" instead. 'Exciting' describes things, 'excited' describes how you feel."
-
-User: "I went to school today"
-Reply: "Nice! How was it? Did anything interesting happen?"
-""".trimIndent()
+private const val TAG = "OnDeviceLlmEngine"
 
 @OptIn(ExperimentalApi::class)
-class LlmEngine(
+class OnDeviceLlmEngine(
     private val modelPath: String,
     // Must be a writable directory for engine cache files (XNNPack, quantization cache, etc.).
     // When modelPath starts with /data/local/tmp, the app has no write access to that directory,
     // so the caller must supply a writable path (e.g. context.getExternalFilesDir(null)).
     private val cacheDir: String? = null,
-) {
+) : LlmEngineInterface {
 
     private var engine: Engine? = null
     private var conversation: Conversation? = null
 
     /**
      * Initializes the LiteRT-LM engine and creates the conversation with the system prompt.
-     * Must be called on a background thread (Dispatchers.Default or Dispatchers.IO).
+     * Runs on Dispatchers.IO to avoid blocking the calling coroutine's thread.
      * Throws on failure.
      */
-    fun initialize() {
-        Log.d(TAG, "Initializing engine: $modelPath  cacheDir: $cacheDir")
+    override suspend fun initialize() {
+        withContext(Dispatchers.IO) {
+            Log.d(TAG, "Initializing engine: $modelPath  cacheDir: $cacheDir")
 
-        val engineConfig = EngineConfig(
-            modelPath = modelPath,
-            backend = Backend.CPU, //GPU 시도 후 실패하면 CPU로 폴백하도록 수정
-            visionBackend = null,
-            audioBackend = null,
-            maxNumTokens = 1024,
-            cacheDir = cacheDir,
-        )
-
-        val newEngine = Engine(engineConfig)
-        newEngine.initialize()
-
-        val systemInstruction = Contents.of(listOf(Content.Text(SYSTEM_PROMPT)))
-        val newConversation = newEngine.createConversation(
-            ConversationConfig(
-                samplerConfig = SamplerConfig(
-                    topK = 64,
-                    topP = 0.95,
-                    temperature = 1.0,
-                ),
-                systemInstruction = systemInstruction,
-                tools = emptyList(),
+            val engineConfig = EngineConfig(
+                modelPath = modelPath,
+                backend = Backend.CPU, // GPU 시도 후 실패하면 CPU로 폴백하도록 수정
+                visionBackend = null,
+                audioBackend = null,
+                maxNumTokens = 1024,
+                cacheDir = cacheDir,
             )
-        )
 
-        engine = newEngine
-        conversation = newConversation
-        Log.d(TAG, "Engine initialized successfully")
+            val newEngine = Engine(engineConfig)
+            newEngine.initialize()
+
+            val systemInstruction = Contents.of(listOf(Content.Text(SYSTEM_PROMPT)))
+            val newConversation = newEngine.createConversation(
+                ConversationConfig(
+                    samplerConfig = SamplerConfig(
+                        topK = 64,
+                        topP = 0.95,
+                        temperature = 1.0,
+                    ),
+                    systemInstruction = systemInstruction,
+                    tools = emptyList(),
+                )
+            )
+
+            engine = newEngine
+            conversation = newConversation
+            Log.d(TAG, "Engine initialized successfully")
+        }
     }
 
     /**
@@ -103,7 +79,7 @@ class LlmEngine(
      * The flow completes when the model finishes generating.
      * Cancelling the collector triggers cancelProcess() via awaitClose.
      */
-    fun sendMessage(userInput: String): Flow<String> = callbackFlow {
+    override fun sendMessage(userInput: String): Flow<String> = callbackFlow {
         val conv = conversation ?: run {
             close(IllegalStateException("Engine not initialized"))
             return@callbackFlow
@@ -156,7 +132,7 @@ class LlmEngine(
      * Resets the conversation history while keeping the engine loaded.
      * Use this to start a new conversation session.
      */
-    fun resetConversation() {
+    override fun resetConversation() {
         val eng = engine ?: return
         try {
             conversation?.close()
@@ -177,7 +153,7 @@ class LlmEngine(
     /**
      * Releases all resources. Call this when the engine is no longer needed.
      */
-    fun close() {
+    override fun close() {
         try {
             conversation?.close()
         } catch (e: Exception) {

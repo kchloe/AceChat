@@ -62,14 +62,14 @@ presentation/
 - [x] M5: STT 연동
 - [x] M6: TTS 연동
 - [x] M7: 파이프라인 통합 + UX 완성
-- [ ] M8: LlmEngine 인터페이스화 + Gemini 온라인 엔진 추가
+- [x] M8: LlmEngine 인터페이스화 + Gemini 온라인 엔진 추가
   - domain/llm/LlmEngineInterface.kt 신설
   - LlmEngine.kt → OnDeviceLlmEngine.kt 개명 + 인터페이스 구현
   - GeminiLlmEngine.kt 구현 (google-generativeai SDK)
   - domain/model/EngineMode.kt 신설
   - ChatViewModel 필드 타입 교체
   - build.gradle.kts: generativeai 의존성 + GEMINI_API_KEY BuildConfig 추가
-- [ ] M9: Room DB + ConversationRepository
+- [x] M9: Room DB + ConversationRepository
   - ksp 플러그인 + Room 의존성 추가
   - ConversationEntity, MessageEntity, DAO 2개, DB 클래스, Mapper 구현
   - ConversationRepository 인터페이스 + Impl

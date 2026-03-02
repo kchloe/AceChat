@@ -32,6 +32,11 @@ android {
             "HF_TOKEN",
             "\"${localProperties.getProperty("HF_TOKEN", "")}\"",
         )
+        buildConfigField(
+            "String",
+            "GEMINI_API_KEY",
+            "\"${localProperties.getProperty("GEMINI_API_KEY", "")}\"",
+        )
     }
 
     buildTypes {
@@ -70,6 +75,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.work.runtime.ktx)
+    implementation(libs.generativeai)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

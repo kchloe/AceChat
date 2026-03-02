@@ -10,22 +10,37 @@
 
 ## 기술 스택
 - **LLM**: LiteRT-LM Kotlin API + Gemma-3-1B-IT (.litertlm 포맷)
+- **LLM(온라인)**: Gemini API (google-generativeai SDK) — Phase 2+
 - **STT**: Android SpeechRecognizer (Push-to-talk, 영어)
 - **TTS**: Android TextToSpeech (영어)
 - **UI**: Jetpack Compose
 - **아키텍처**: MVVM + Coroutines/Flow
 - **언어**: Kotlin
+- **DB**: Room (로컬 채팅 히스토리)
+- **Preferences**: DataStore Preferences (엔진 모드 설정)
+- **Navigation**: Compose Navigation (Typed Routes)
 
 ## 패키지 구조
+```
 data/
-llm/        # LiteRT-LM Engine 래퍼
-stt/        # SpeechRecognizer 래퍼
-tts/        # TextToSpeech 래퍼
+  llm/        # OnDeviceLlmEngine, GeminiLlmEngine
+  db/         # Room DB, DAO, Entity, Mapper
+  preferences/ # UserPreferencesRepository (DataStore)
+  repository/ # ConversationRepositoryImpl
+  stt/        # SpeechRecognizer 래퍼
+  tts/        # TextToSpeech 래퍼
 domain/
-model/      # ChatMessage, ConversationState 데이터 모델
+  llm/        # LlmEngineInterface
+  model/      # ChatMessage, ConversationState, Conversation, EngineMode 등
+  repository/ # ConversationRepository 인터페이스
+di/           # AppContainer
 presentation/
-chat/       # ChatScreen, ChatViewModel
-components/ # 공통 UI 컴포넌트
+  navigation/ # AceChatNavGraph
+  conversationlist/ # ConversationListScreen, ViewModel
+  chat/       # ChatScreen, ChatViewModel, ModelDownloadScreen, ViewModel
+  settings/   # SettingsScreen, SettingsViewModel
+  components/ # 공통 UI 컴포넌트
+```
 
 ## Gallery 참고 포인트
 - LLM 연동: GoogleAiGallery/Android 내 LLM 관련 코드 참고
@@ -46,8 +61,36 @@ components/ # 공통 UI 컴포넌트
 - [x] M4: 모델 다운로드 관련 구현
 - [x] M5: STT 연동
 - [x] M6: TTS 연동
-- [ ] M7: 파이프라인 통합 + UX 완성
-- [ ] M8: 테스트 + 마무리
+- [x] M7: 파이프라인 통합 + UX 완성
+- [ ] M8: LlmEngine 인터페이스화 + Gemini 온라인 엔진 추가
+  - domain/llm/LlmEngineInterface.kt 신설
+  - LlmEngine.kt → OnDeviceLlmEngine.kt 개명 + 인터페이스 구현
+  - GeminiLlmEngine.kt 구현 (google-generativeai SDK)
+  - domain/model/EngineMode.kt 신설
+  - ChatViewModel 필드 타입 교체
+  - build.gradle.kts: generativeai 의존성 + GEMINI_API_KEY BuildConfig 추가
+- [ ] M9: Room DB + ConversationRepository
+  - ksp 플러그인 + Room 의존성 추가
+  - ConversationEntity, MessageEntity, DAO 2개, DB 클래스, Mapper 구현
+  - ConversationRepository 인터페이스 + Impl
+  - ChatViewModel에 대화 생성/메시지 저장 로직 추가
+- [ ] M10: AppContainer + Application + DataStore
+  - AceChatApplication.kt, AppContainer.kt 구현
+  - UserPreferencesRepository.kt (DataStore Preferences)
+  - AndroidManifest.xml android:name 등록
+  - MainActivity에서 appContainer 통한 ViewModel Factory 구성
+  - datastore-preferences 의존성 추가
+- [ ] M11: 멀티스크린 + Compose Navigation
+  - kotlin-serialization 플러그인 + navigation-compose 의존성 추가
+  - AceChatNavGraph.kt (route 정의 + NavHost)
+  - ConversationListScreen + ViewModel
+  - SettingsScreen + ViewModel (엔진 모드 토글)
+  - ChatScreen, ChatViewModel 수정 (conversationId 수신, 기존 메시지 로드)
+  - MainActivity 단순화 / OnDeviceLlmEngine 수명주기 AppContainer로 이전
+- [ ] M12: 테스트 + 마무리
+  - FakeLlmEngine 작성 (테스트용)
+  - ChatViewModelTest, ConversationRepositoryImplTest 등 단위 테스트
+  - ProGuard 규칙 점검
 
 ## 주의사항
 - Gallery 코드를 복사하지 말고 패턴을 참고해서 AceChat에 맞게 작성할 것

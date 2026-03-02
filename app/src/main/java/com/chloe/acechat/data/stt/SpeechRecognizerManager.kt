@@ -102,8 +102,16 @@ class SpeechRecognizerManager(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.ENGLISH.toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            // 최소 발화 길이: 너무 짧은 소음을 음성으로 오인하지 않도록 100ms 유지
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 100L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
+            // 발화 도중 일시 침묵 허용 시간: 학습자가 다음 단어를 떠올리는 동안의 포즈를 허용.
+            // 이 값은 구글 STT 서비스에 대한 "hint"이며 기기별로 실제 동작이 다를 수 있음.
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
+            // 발화 완료로 최종 판단하는 침묵 시간: 위 값보다 길거나 같게 설정해야 일관성 있음.
+            // 이 역시 구글 STT에 대한 hint이며 기기별 동작 차이가 있을 수 있음.
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
+            // 참고: 마이크 버튼을 누른 후 말을 시작하기까지의 초기 대기 시간(speech timeout)을
+            // 직접 제어하는 표준 Extra는 존재하지 않음. 해당 timeout은 OS/기기 구현에 따라 결정됨.
         }
         speechRecognizer?.startListening(intent)
     }

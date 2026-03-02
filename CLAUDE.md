@@ -57,3 +57,6 @@ components/ # 공통 UI 컴포넌트
 ## Agent 사용 규칙
 - 코드 작성/수정/리팩토링이 포함된 태스크는 반드시 subagent를 사용한다.
 - 단순 질문, 설명, 분석만 하는 경우는 메인 Claude가 직접 처리해도 된다.
+- UX 결정사항을 CLAUDE.md에 반영할 때는 아래 순서로 subagent를 호출한다:
+  1. `android-architect` — UX 결정을 기술 언어로 해석 + 마일스톤 분해
+  2. `project-planner` — 의존성 분석·우선순위 결정 + CLAUDE.md 업데이트

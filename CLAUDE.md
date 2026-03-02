@@ -80,7 +80,7 @@ presentation/
   - AndroidManifest.xml android:name 등록
   - MainActivity에서 appContainer 통한 ViewModel Factory 구성
   - datastore-preferences 의존성 추가
-- [ ] M11: 멀티스크린 + Compose Navigation
+- [x] M11: 멀티스크린 + Compose Navigation
   - kotlin-serialization 플러그인 + navigation-compose 의존성 추가
   - AceChatNavGraph.kt (route 정의 + NavHost)
   - ConversationListScreen + ViewModel

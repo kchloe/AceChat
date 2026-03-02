@@ -1,5 +1,6 @@
 package com.chloe.acechat.di
 
+import android.app.Application
 import android.content.Context
 import com.chloe.acechat.data.db.AceChatDatabase
 import com.chloe.acechat.data.llm.GeminiLlmEngine
@@ -15,6 +16,9 @@ import java.io.File
 class AppContainer(context: Context) {
 
     private val appContext = context.applicationContext
+
+    /** NavGraph 등에서 Application 컨텍스트가 필요할 때 사용. */
+    val application: Application get() = appContext as Application
 
     val userPreferencesRepository = UserPreferencesRepository(appContext)
 

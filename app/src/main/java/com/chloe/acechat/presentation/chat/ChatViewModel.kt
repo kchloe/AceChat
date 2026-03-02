@@ -14,11 +14,13 @@ import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.ConversationState
 import com.chloe.acechat.domain.model.MessageRole
 import com.chloe.acechat.domain.model.MessageType
+import com.chloe.acechat.domain.repository.ConversationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,9 +31,17 @@ private const val TAG = "ChatViewModel"
 // Marker that separates the conversational reply from the grammar correction.
 private const val CORRECTION_MARKER = "✏️ Correction:"
 
+// 첫 USER 메시지로 대화 제목을 자동 생성할 때 사용하는 최대 글자 수.
+private const val TITLE_MAX_LENGTH = 30
+
+// 대화 생성 직후 기본 제목. 이 값이 유지되는 동안 첫 메시지로 제목을 업데이트한다.
+private const val DEFAULT_CONVERSATION_TITLE = "New Chat"
+
 class ChatViewModel(
     application: Application,
-    private val llmEngine: LlmEngineInterface,
+    internal var llmEngine: LlmEngineInterface,
+    private val conversationId: String,
+    private val conversationRepository: ConversationRepository,
 ) : AndroidViewModel(application) {
 
     private val speechRecognizerManager = SpeechRecognizerManager(application)
@@ -50,9 +60,42 @@ class ChatViewModel(
     /** TtsManager의 상태를 그대로 노출 */
     val ttsState: StateFlow<TtsState> = ttsManager.ttsState
 
+    // 현재 대화의 제목. 첫 메시지 전송 시 업데이트 여부 판단에 사용.
+    private var conversationTitle: String = DEFAULT_CONVERSATION_TITLE
+
     init {
+        loadExistingMessages()
         initializeEngine()
         observeSttResults()
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Initialization
+    // -----------------------------------------------------------------------------------------
+
+    /**
+     * DB에서 기존 메시지를 1회 로드한다.
+     * Flow를 지속 구독하지 않고 first()로 스냅샷만 읽어 스트리밍 중 충돌을 방지한다.
+     */
+    private fun loadExistingMessages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val conversation = conversationRepository.getAllConversations()
+                    .first()
+                    .find { it.id == conversationId }
+                if (conversation != null) {
+                    conversationTitle = conversation.title
+                }
+
+                val existing = conversationRepository.getMessages(conversationId).first()
+                if (existing.isNotEmpty()) {
+                    // 기존 메시지는 모두 isVisible=true로 표시 (DB의 toDomain()에서 고정)
+                    _messages.update { existing }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load existing messages", e)
+            }
+        }
     }
 
     // -----------------------------------------------------------------------------------------
@@ -127,6 +170,9 @@ class ChatViewModel(
      * After streaming completes the message type is set to:
      * - [MessageType.CORRECTION] when the response contains "✏️ Correction:"
      * - [MessageType.NORMAL] otherwise
+     *
+     * 완료 후 USER 메시지 + BOT 메시지를 DB에 저장한다.
+     * 첫 USER 메시지이고 현재 제목이 기본값이면 제목을 자동 업데이트한다.
      */
     fun sendMessage(userInput: String) {
         if (_conversationState.value !is ConversationState.Idle) return
@@ -134,11 +180,31 @@ class ChatViewModel(
         val trimmed = userInput.trim()
         if (trimmed.isEmpty()) return
 
+        val userMessage = ChatMessage(role = MessageRole.USER, content = trimmed, isVisible = true)
+
         // USER 메시지는 즉시 노출.
-        _messages.update { it + ChatMessage(role = MessageRole.USER, content = trimmed, isVisible = true) }
+        _messages.update { it + userMessage }
         _conversationState.update { ConversationState.Loading }
 
         viewModelScope.launch(Dispatchers.Default) {
+            // USER 메시지 DB 저장
+            try {
+                conversationRepository.saveMessage(conversationId, userMessage)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save user message", e)
+            }
+
+            // 첫 USER 메시지로 대화 제목 자동 업데이트
+            if (conversationTitle == DEFAULT_CONVERSATION_TITLE) {
+                val newTitle = trimmed.take(TITLE_MAX_LENGTH)
+                try {
+                    conversationRepository.updateConversationTitle(conversationId, newTitle)
+                    conversationTitle = newTitle
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update conversation title", e)
+                }
+            }
+
             val botId = UUID.randomUUID().toString()
             var accumulated = ""
             var streamingStarted = false
@@ -159,15 +225,22 @@ class ChatViewModel(
                     if (finalContent.contains(CORRECTION_MARKER)) MessageType.CORRECTION
                     else MessageType.NORMAL
 
+                val botMessage = ChatMessage(
+                    id = botId,
+                    role = MessageRole.BOT,
+                    content = finalContent,
+                    type = messageType,
+                    isVisible = false,
+                )
+
                 // BOT 메시지를 invisible 상태로 추가.
-                _messages.update {
-                    it + ChatMessage(
-                        id = botId,
-                        role = MessageRole.BOT,
-                        content = finalContent,
-                        type = messageType,
-                        isVisible = false,
-                    )
+                _messages.update { it + botMessage }
+
+                // BOT 메시지 DB 저장 (isVisible 필드는 DB에 저장하지 않으므로 값 무관)
+                try {
+                    conversationRepository.saveMessage(conversationId, botMessage)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save bot message", e)
                 }
 
                 // 메인 스레드에서 TTS 시작 → 말풍선 노출 → Idle 전환을 한 번에 처리.
@@ -242,9 +315,11 @@ class ChatViewModel(
     class Factory(
         private val application: Application,
         private val llmEngine: LlmEngineInterface,
+        private val conversationId: String,
+        private val conversationRepository: ConversationRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            ChatViewModel(application, llmEngine) as T
+            ChatViewModel(application, llmEngine, conversationId, conversationRepository) as T
     }
 }

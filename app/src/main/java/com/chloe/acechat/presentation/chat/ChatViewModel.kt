@@ -5,8 +5,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.chloe.acechat.data.llm.MODEL_FILE_NAME
-import com.chloe.acechat.data.llm.OnDeviceLlmEngine
 import com.chloe.acechat.data.stt.SpeechRecognizerManager
 import com.chloe.acechat.data.stt.SttState
 import com.chloe.acechat.data.tts.TtsManager
@@ -24,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.util.UUID
 
 private const val TAG = "ChatViewModel"
@@ -34,19 +31,9 @@ private const val CORRECTION_MARKER = "✏️ Correction:"
 
 class ChatViewModel(
     application: Application,
-    modelPathOverride: String? = null,
+    private val llmEngine: LlmEngineInterface,
 ) : AndroidViewModel(application) {
 
-    private val modelPath: String = modelPathOverride ?: File(
-        application.getExternalFilesDir(null), "models/$MODEL_FILE_NAME"
-    ).absolutePath
-
-    // LiteRT-LM needs a writable cache directory for compiled model artifacts (XNNPack, etc).
-    // We use the app's external files directory which is guaranteed to be writable.
-    private val cacheDir: String? = application.getExternalFilesDir(null)?.absolutePath
-
-    // Exposed as internal var to allow injection in tests or future AppContainer migration (M10).
-    internal var llmEngine: LlmEngineInterface = OnDeviceLlmEngine(modelPath = modelPath, cacheDir = cacheDir)
     private val speechRecognizerManager = SpeechRecognizerManager(application)
     // ViewModel은 메인 스레드에서 생성되므로 TtsManager 생성도 메인 스레드에서 실행된다.
     private val ttsManager = TtsManager(application)
@@ -201,6 +188,10 @@ class ChatViewModel(
                 _conversationState.update {
                     ConversationState.Error(e.message ?: "Inference failed")
                 }
+                // 추론 에러는 엔진 자체가 살아있으므로 잠시 후 Idle로 복귀하여 재시도를 허용한다.
+                // (엔진 초기화 실패는 별도 경로이며 Error 상태를 유지한다.)
+                delay(3000)
+                _conversationState.update { ConversationState.Idle }
             }
         }
     }
@@ -223,7 +214,7 @@ class ChatViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        llmEngine.close()
+        // llmEngine.close()는 호출하지 않음 — 엔진 수명주기는 AppContainer가 담당.
         speechRecognizerManager.destroy()
         ttsManager.destroy()
     }
@@ -250,10 +241,10 @@ class ChatViewModel(
 
     class Factory(
         private val application: Application,
-        private val modelPathOverride: String? = null,
+        private val llmEngine: LlmEngineInterface,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            ChatViewModel(application, modelPathOverride) as T
+            ChatViewModel(application, llmEngine) as T
     }
 }

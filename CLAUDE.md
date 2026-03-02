@@ -74,7 +74,7 @@ presentation/
   - ConversationEntity, MessageEntity, DAO 2개, DB 클래스, Mapper 구현
   - ConversationRepository 인터페이스 + Impl
   - ChatViewModel에 대화 생성/메시지 저장 로직 추가
-- [ ] M10: AppContainer + Application + DataStore
+- [x] M10: AppContainer + Application + DataStore
   - AceChatApplication.kt, AppContainer.kt 구현
   - UserPreferencesRepository.kt (DataStore Preferences)
   - AndroidManifest.xml android:name 등록

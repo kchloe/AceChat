@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 private const val TAG = "GeminiLlmEngine"
-private const val MODEL_NAME = "gemini-2.0-flash"
+private const val MODEL_NAME = "gemini-2.5-flash"
 
 class GeminiLlmEngine : LlmEngineInterface {
 

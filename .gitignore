@@ -34,7 +34,7 @@ google-services.json
 *.hprof
 
 # claude code setting
-.claude/
+.claude/agent-memory/
 
 # 기존
 .gradle

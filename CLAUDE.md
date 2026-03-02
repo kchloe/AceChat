@@ -53,3 +53,7 @@ components/ # 공통 UI 컴포넌트
 - Gallery 코드를 복사하지 말고 패턴을 참고해서 AceChat에 맞게 작성할 것
 - LiteRT-LM은 아직 preview 단계이므로 API 변경 가능성 있음
 - 모델 파일(.litertlm)은 기기 로컬 스토리지에 수동 배치 (테스트용)
+
+## Agent 사용 규칙
+- 코드 작성/수정/리팩토링이 포함된 태스크는 반드시 subagent를 사용한다.
+- 단순 질문, 설명, 분석만 하는 경우는 메인 Claude가 직접 처리해도 된다.

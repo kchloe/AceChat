@@ -12,21 +12,37 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -42,7 +58,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val dateFormatter = SimpleDateFormat("MMM dd", Locale.getDefault())
+private val dateTimeFormatter = SimpleDateFormat("M월 d일 HH:mm", Locale.KOREAN)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,6 +139,9 @@ fun ConversationListScreen(
                     onDeleteConversation = { id ->
                         scope.launch { viewModel.deleteConversation(id) }
                     },
+                    onRenameConversation = { id, newTitle ->
+                        scope.launch { viewModel.renameConversation(id, newTitle) }
+                    },
                 )
             }
         }
@@ -161,6 +180,7 @@ private fun ConversationList(
     conversations: List<Conversation>,
     onOpenChat: (conversationId: String, engineMode: EngineMode) -> Unit,
     onDeleteConversation: (id: String) -> Unit,
+    onRenameConversation: (id: String, newTitle: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier = modifier.fillMaxSize()) {
@@ -172,6 +192,7 @@ private fun ConversationList(
                 conversation = conversation,
                 onClick = { onOpenChat(conversation.id, conversation.engineMode) },
                 onDelete = { onDeleteConversation(conversation.id) },
+                onRename = { newTitle -> onRenameConversation(conversation.id, newTitle) },
             )
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -181,13 +202,31 @@ private fun ConversationList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConversationItem(
     conversation: Conversation,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onRename: (newTitle: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // 시트 닫힘 애니메이션 완료 후 후속 액션 실행
+    val hideAndDo: (() -> Unit) -> Unit = { action ->
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) {
+                showBottomSheet = false
+                action()
+            }
+        }
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -209,24 +248,163 @@ private fun ConversationItem(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = dateFormatter.format(Date(conversation.updatedAt)),
+                text = dateTimeFormatter.format(Date(conversation.updatedAt)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         IconButton(
-            onClick = onDelete,
+            onClick = { showBottomSheet = true },
             modifier = Modifier.semantics {
-                contentDescription = "Delete conversation ${conversation.title}"
+                contentDescription = "More options for ${conversation.title}"
             },
         ) {
             Icon(
-                imageVector = Icons.Default.Delete,
+                imageVector = Icons.Default.MoreVert,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
+
+    // ── ModalBottomSheet ──────────────────────────────────────────────────────
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false },
+            sheetState = sheetState,
+        ) {
+            // 헤더: 대화 제목 + 엔진 뱃지
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = conversation.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                EngineBadge(engineMode = conversation.engineMode)
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Rename
+            BottomSheetMenuItem(
+                icon = Icons.Default.Edit,
+                label = "Rename",
+                onClick = { hideAndDo { showRenameDialog = true } },
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Delete (파괴적 액션 — error 색상 강조)
+            BottomSheetMenuItem(
+                icon = Icons.Default.Delete,
+                label = "Delete",
+                onClick = { hideAndDo { showDeleteDialog = true } },
+                iconTint = MaterialTheme.colorScheme.error,
+                labelColor = MaterialTheme.colorScheme.error,
+            )
+
+            // 내비게이션 바 여백
+            Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Rename 다이얼로그
+    if (showRenameDialog) {
+        RenameDialog(
+            currentTitle = conversation.title,
+            onConfirm = { newTitle ->
+                showRenameDialog = false
+                onRename(newTitle)
+            },
+            onDismiss = { showRenameDialog = false },
+        )
+    }
+
+    // Delete 확인 다이얼로그
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete conversation") },
+            text = { Text("Are you sure you want to delete \"${conversation.title}\"?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun BottomSheetMenuItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = iconTint)
+        Text(text = label, style = MaterialTheme.typography.bodyLarge, color = labelColor)
+    }
+}
+
+@Composable
+private fun RenameDialog(
+    currentTitle: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(currentTitle) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename conversation") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Title") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (text.isNotBlank()) onConfirm(text.trim()) },
+                enabled = text.isNotBlank(),
+            ) {
+                Text("Rename")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

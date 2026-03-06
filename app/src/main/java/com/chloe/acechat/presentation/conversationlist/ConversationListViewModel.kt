@@ -45,6 +45,10 @@ class ConversationListViewModel(
         conversationRepository.deleteConversation(id)
     }
 
+    suspend fun renameConversation(id: String, newTitle: String) {
+        conversationRepository.updateConversationTitle(id, newTitle)
+    }
+
     fun isModelReady(): Boolean {
         val modelDir = File(getApplication<Application>().getExternalFilesDir(null), "models")
         val modelFile = File(modelDir, MODEL_FILE_NAME)

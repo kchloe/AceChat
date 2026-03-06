@@ -87,15 +87,28 @@ presentation/
   - SettingsScreen + ViewModel (엔진 모드 토글)
   - ChatScreen, ChatViewModel 수정 (conversationId 수신, 기존 메시지 로드)
   - MainActivity 단순화 / OnDeviceLlmEngine 수명주기 AppContainer로 이전
-- [ ] M12: 테스트 + 마무리
-  - FakeLlmEngine 작성 (테스트용)
-  - ChatViewModelTest, ConversationRepositoryImplTest 등 단위 테스트
-  - ProGuard 규칙 점검
+- [ ] M12: 테스트 환경 구축 + 단위 테스트
+  - 테스트 의존성 추가 (kotlinx-coroutines-test, turbine, room-testing)
+  - Fake 구현체 작성
+    - FakeLlmEngine (LlmEngineInterface 구현)
+    - FakeConversationRepository (ConversationRepository 구현)
+    - FakeUserPreferencesRepository (DataStore 없이 Flow 기반)
+  - 단위 테스트 작성
+    - ChatViewModelTest (sendMessage 흐름, 상태 전이, 제목 자동 생성)
+    - ConversationRepositoryImplTest (Room in-memory DB, CRUD)
+    - SettingsViewModelTest (EngineMode 변경, Flow 방출)
+    - ConversationListViewModelTest (목록 로드, 삭제, 이름 변경)
+  - 테스트 불가 클래스 목록 확정 및 문서화
+    - SpeechRecognizerManager, TtsManager, OnDeviceLlmEngine
+    - ChatViewModel (STT/TTS Manager 직접 생성 구조로 인한 제약)
+  - ProGuard 규칙 점검 (Room, LiteRT-LM, Gemini SDK, Navigation)
+- [ ] M13 : 기능 고도화 
 
 ## 주의사항
 - Gallery 코드를 복사하지 말고 패턴을 참고해서 AceChat에 맞게 작성할 것
 - LiteRT-LM은 아직 preview 단계이므로 API 변경 가능성 있음
 - 모델 파일(.litertlm)은 기기 로컬 스토리지에 수동 배치 (테스트용)
+- M13부터 새로 작성하는 코드는 TDD(Red → Green → Refactor) 사이클로 운영한다
 
 ## Agent 사용 규칙
 - 코드 작성/수정/리팩토링이 포함된 태스크는 반드시 subagent를 사용한다.

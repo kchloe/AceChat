@@ -3,7 +3,7 @@ package com.chloe.acechat.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.chloe.acechat.data.preferences.UserPreferencesRepository
+import com.chloe.acechat.domain.preferences.UserPreferencesRepository
 import com.chloe.acechat.domain.model.EngineMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

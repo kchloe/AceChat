@@ -5,7 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.chloe.acechat.data.llm.MODEL_FILE_NAME
-import com.chloe.acechat.data.preferences.UserPreferencesRepository
+import com.chloe.acechat.domain.preferences.UserPreferencesRepository
+import kotlinx.coroutines.flow.first
 import com.chloe.acechat.domain.model.Conversation
 import com.chloe.acechat.domain.model.EngineMode
 import com.chloe.acechat.domain.repository.ConversationRepository
@@ -36,7 +37,7 @@ class ConversationListViewModel(
         )
 
     suspend fun createNewConversation(): String {
-        val mode = engineMode.value
+        val mode = userPreferencesRepository.engineMode.first()
         val conversation = conversationRepository.createConversation(mode)
         return conversation.id
     }

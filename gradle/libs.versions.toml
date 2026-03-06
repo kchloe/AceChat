@@ -12,6 +12,8 @@ kotlin = "2.0.21"
 composeBom = "2026.02.00"
 litertlm = "0.9.0-alpha04"
 coroutinesAndroid = "1.8.0"
+coroutinesTest = "1.8.0"
+turbine = "1.1.0"
 okhttp = "4.11.0"
 workRuntimeKtx = "2.11.1"
 generativeai = "0.9.0"
@@ -48,6 +50,9 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -87,7 +87,7 @@ presentation/
   - SettingsScreen + ViewModel (엔진 모드 토글)
   - ChatScreen, ChatViewModel 수정 (conversationId 수신, 기존 메시지 로드)
   - MainActivity 단순화 / OnDeviceLlmEngine 수명주기 AppContainer로 이전
-- [ ] M12: 테스트 환경 구축 + 단위 테스트
+- [x] M12: 테스트 환경 구축 + 단위 테스트
   - 테스트 의존성 추가 (kotlinx-coroutines-test, turbine, room-testing)
   - Fake 구현체 작성
     - FakeLlmEngine (LlmEngineInterface 구현)

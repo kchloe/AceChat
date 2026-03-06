@@ -6,7 +6,8 @@ import com.chloe.acechat.data.db.AceChatDatabase
 import com.chloe.acechat.data.llm.GeminiLlmEngine
 import com.chloe.acechat.data.llm.MODEL_FILE_NAME
 import com.chloe.acechat.data.llm.OnDeviceLlmEngine
-import com.chloe.acechat.data.preferences.UserPreferencesRepository
+import com.chloe.acechat.data.preferences.UserPreferencesRepositoryImpl
+import com.chloe.acechat.domain.preferences.UserPreferencesRepository
 import com.chloe.acechat.data.repository.ConversationRepositoryImpl
 import com.chloe.acechat.domain.llm.LlmEngineInterface
 import com.chloe.acechat.domain.model.EngineMode
@@ -20,7 +21,7 @@ class AppContainer(context: Context) {
     /** NavGraph 등에서 Application 컨텍스트가 필요할 때 사용. */
     val application: Application get() = appContext as Application
 
-    val userPreferencesRepository = UserPreferencesRepository(appContext)
+    val userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepositoryImpl(appContext)
 
     private val db = AceChatDatabase.getInstance(appContext)
     val conversationRepository: ConversationRepository = ConversationRepositoryImpl(db)

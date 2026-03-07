@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chloe.acechat.data.stt.SttState
 import com.chloe.acechat.data.tts.TtsState
 import com.chloe.acechat.domain.model.ConversationState
+import com.chloe.acechat.domain.model.MessageRole
 import com.chloe.acechat.presentation.components.MessageBubble
 import com.chloe.acechat.presentation.components.MicButton
 import com.chloe.acechat.presentation.components.MicButtonState
@@ -60,6 +61,7 @@ fun ChatScreen(
     val conversationState by viewModel.conversationState.collectAsStateWithLifecycle()
     val sttState by viewModel.sttState.collectAsStateWithLifecycle()
     val ttsState by viewModel.ttsState.collectAsStateWithLifecycle()
+    val playingMessageId by viewModel.playingMessageId.collectAsStateWithLifecycle()
 
     val isLoading = conversationState is ConversationState.Loading
     val isStreaming = conversationState is ConversationState.Streaming
@@ -175,7 +177,13 @@ fun ChatScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(visibleMessages, key = { it.id }) { message ->
-                                MessageBubble(message = message)
+                                MessageBubble(
+                                    message = message,
+                                    isPlaying = playingMessageId == message.id,
+                                    onPlayTapped = if (message.role == MessageRole.BOT) {
+                                        { viewModel.onPlayTapped(message.id, message.content) }
+                                    } else null,
+                                )
                             }
                             if (isThinking) {
                                 item(key = "thinking") {

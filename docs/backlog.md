@@ -1,7 +1,7 @@
 # AceChat Backlog
 
 > 관련 UX 리서치 전문: [docs/ux-strategy-report.md](ux-strategy-report.md)
-> 마지막 업데이트: 2026-03-07
+> 마지막 업데이트: 2026-03-08
 
 ---
 
@@ -26,10 +26,15 @@
   - 해결 방향: `SpeechRecognizerManager` 인터페이스 추출 + `ChatViewModel` 생성자 주입 전환
   - 참조: `.claude/agent-memory/android-test-engineer/testability-analysis.md`
 
-- [ ] **[TECH-DEBT] `TtsManager` 인터페이스 추출**
+- [x] **[TECH-DEBT] `TtsManager` 인터페이스 추출**
   - 현황: 위와 동일 사유
   - 해결 방향: `TtsManager` 인터페이스 추출 + 생성자 주입 전환
-  - 비고: 두 인터페이스 추출 완료 시 `ChatViewModel` 직접 단위 테스트 가능해짐
+  - 비고: A1 구현에서 완료. `TtsManagerInterface` 추출, `TtsManagerImpl` rename, 생성자 주입 전환.
+
+- [ ] **[TECH-DEBT] `TtsState` / `SttState` 위치 재검토**
+  - 현황: 두 sealed class 모두 `data/` 패키지에 선언되어 있으나, 상태 모델은 `domain/model/`에 위치하는 것이 레이어 원칙에 부합
+  - 해결 방향: `TtsState`, `SttState`를 `domain/model/`로 이동
+  - 우선순위: L (동작에 영향 없음, 정합성 개선)
 
 ---
 
@@ -41,7 +46,7 @@
 
 | # | 기능 | 임팩트 | 난이도 | 비고 |
 |---|---|---|---|---|
-| A1 | **다시 듣기 버튼** (TTS 말풍선 재생 버튼) | H | 2 | |
+| A1 | ~~**다시 듣기 버튼** (TTS 말풍선 재생 버튼)~~ ✅ | H | 2 | 완료 (2026-03-08) |
 | A2 | **언어 설정** (영어/한국어 배우기 모드 전환) | H | 3 | 시스템 프롬프트 분기 포함 |
 | A3 | **UI 개선** (Material3 Compose 전반 정비) | M | 2 | Empty state, 카드 레이아웃 등 |
 | A4 | **대화 제목 자동 생성 개선** (대화 종료 시 전체 대화 요약 기반 생성) | M | 2 | |

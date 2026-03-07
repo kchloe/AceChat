@@ -7,8 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.chloe.acechat.data.stt.SpeechRecognizerManager
 import com.chloe.acechat.data.stt.SttState
-import com.chloe.acechat.data.tts.TtsManager
 import com.chloe.acechat.data.tts.TtsState
+import com.chloe.acechat.domain.tts.TtsManagerInterface
 import com.chloe.acechat.domain.llm.LlmEngineInterface
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.ConversationState
@@ -42,11 +42,10 @@ class ChatViewModel(
     internal var llmEngine: LlmEngineInterface,
     private val conversationId: String,
     private val conversationRepository: ConversationRepository,
+    internal val ttsManager: TtsManagerInterface,
 ) : AndroidViewModel(application) {
 
     private val speechRecognizerManager = SpeechRecognizerManager(application)
-    // ViewModel은 메인 스레드에서 생성되므로 TtsManager 생성도 메인 스레드에서 실행된다.
-    private val ttsManager = TtsManager(application)
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val uiState: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -60,6 +59,9 @@ class ChatViewModel(
     /** TtsManager의 상태를 그대로 노출 */
     val ttsState: StateFlow<TtsState> = ttsManager.ttsState
 
+    private val _playingMessageId = MutableStateFlow<String?>(null)
+    val playingMessageId: StateFlow<String?> = _playingMessageId.asStateFlow()
+
     // 현재 대화의 제목. 첫 메시지 전송 시 업데이트 여부 판단에 사용.
     private var conversationTitle: String = DEFAULT_CONVERSATION_TITLE
 
@@ -67,6 +69,7 @@ class ChatViewModel(
         loadExistingMessages()
         initializeEngine()
         observeSttResults()
+        observeTtsState()
     }
 
     // -----------------------------------------------------------------------------------------
@@ -144,6 +147,27 @@ class ChatViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * 다시 듣기 버튼 탭 핸들러.
+     * - STT 활성 상태(Listening, PartialResult)이면 무시
+     * - 동일 messageId 재탭 시 stop() + playingMessageId = null (토글)
+     * - 다른 messageId 탭 시 stop() 후 새 메시지 재생
+     */
+    fun onPlayTapped(messageId: String, text: String) {
+        val currentSttState = sttState.value
+        if (currentSttState is SttState.Listening || currentSttState is SttState.PartialResult) return
+
+        if (_playingMessageId.value == messageId) {
+            ttsManager.stop()
+            _playingMessageId.value = null
+            return
+        }
+
+        ttsManager.stop()
+        _playingMessageId.value = messageId
+        ttsManager.speak(text)
     }
 
     /**
@@ -247,6 +271,7 @@ class ChatViewModel(
                 val ttsText = extractTtsText(finalContent, messageType)
                 withContext(Dispatchers.Main) {
                     if (ttsText.isNotEmpty()) {
+                        _playingMessageId.value = botId
                         ttsManager.speak(ttsText)
                     }
                     // TTS 큐에 올라간 직후 말풍선을 노출하고 상태를 Idle로 전환.
@@ -278,6 +303,7 @@ class ChatViewModel(
         if (state is ConversationState.Loading || state is ConversationState.Streaming) return
 
         ttsManager.stop()
+        _playingMessageId.value = null
         viewModelScope.launch(Dispatchers.Default) {
             _messages.update { emptyList() }
             llmEngine.resetConversation()
@@ -295,6 +321,19 @@ class ChatViewModel(
     // -----------------------------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------------------------
+
+    /**
+     * TtsState를 구독하여 Idle/Error 전환 시 playingMessageId를 null로 초기화한다.
+     */
+    private fun observeTtsState() {
+        viewModelScope.launch {
+            ttsManager.ttsState.collect { state ->
+                if (state is TtsState.Idle || state is TtsState.Error) {
+                    _playingMessageId.value = null
+                }
+            }
+        }
+    }
 
     /** Converts literal \n sequences that the LLM may output into real newlines. */
     private fun processResponse(text: String): String = text.replace("\\n", "\n")
@@ -317,9 +356,10 @@ class ChatViewModel(
         private val llmEngine: LlmEngineInterface,
         private val conversationId: String,
         private val conversationRepository: ConversationRepository,
+        private val ttsManager: TtsManagerInterface,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            ChatViewModel(application, llmEngine, conversationId, conversationRepository) as T
+            ChatViewModel(application, llmEngine, conversationId, conversationRepository, ttsManager) as T
     }
 }

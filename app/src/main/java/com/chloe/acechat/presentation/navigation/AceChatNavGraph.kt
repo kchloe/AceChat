@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.chloe.acechat.data.tts.TtsManagerImpl
 import com.chloe.acechat.di.AppContainer
 import com.chloe.acechat.domain.model.EngineMode
 import com.chloe.acechat.presentation.chat.ChatScreen
@@ -55,6 +56,7 @@ fun AceChatNavGraph(appContainer: AppContainer) {
                     llmEngine = engine,
                     conversationId = route.conversationId,
                     conversationRepository = appContainer.conversationRepository,
+                    ttsManager = TtsManagerImpl(appContainer.application),
                 ).create(ChatViewModel::class.java)
             }
             ChatScreen(

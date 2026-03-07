@@ -74,6 +74,7 @@ STT(음성입력) → ChatViewModel.sendMessage() → LlmEngine.sendMessage() [F
 3. 성능 수치는 실제 기기 기준으로 판단
 4. 모델 파일은 수동 배포 방식 유지 (adb push)
 5. 시스템 프롬프트 변경 시 예상 동작 변화를 항상 설명
+6. 작업 중 발견된 버그·성능 이슈·LiteRT-LM API 제약사항은 `/Users/user/AndroidStudioProjects/AceChat/docs/backlog.md`의 "버그 / 기술 부채" 섹션에 추가한다
 
 ## 참고 리소스
 - LiteRT-LM API: com.google.ai.edge.litertlm.*

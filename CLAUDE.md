@@ -10,7 +10,7 @@
 
 ## 기술 스택
 - **LLM**: LiteRT-LM Kotlin API + Gemma-3-1B-IT (.litertlm 포맷)
-- **LLM(온라인)**: Gemini API (google-generativeai SDK) — Phase 2+
+- **LLM(온라인)**: Gemini API (google-generativeai SDK)
 - **STT**: Android SpeechRecognizer (Push-to-talk, 영어)
 - **TTS**: Android TextToSpeech (영어)
 - **UI**: Jetpack Compose
@@ -25,7 +25,7 @@
 data/
   llm/        # OnDeviceLlmEngine, GeminiLlmEngine
   db/         # Room DB, DAO, Entity, Mapper
-  preferences/ # UserPreferencesRepository (DataStore)
+  preferences/ # UserPreferencesRepositoryImpl (DataStore)
   repository/ # ConversationRepositoryImpl
   stt/        # SpeechRecognizer 래퍼
   tts/        # TextToSpeech 래퍼
@@ -33,6 +33,7 @@ domain/
   llm/        # LlmEngineInterface
   model/      # ChatMessage, ConversationState, Conversation, EngineMode 등
   repository/ # ConversationRepository 인터페이스
+  preferences/ # UserPreferencesRepository 인터페이스
 di/           # AppContainer
 presentation/
   navigation/ # AceChatNavGraph
@@ -63,46 +64,15 @@ presentation/
 - [x] M6: TTS 연동
 - [x] M7: 파이프라인 통합 + UX 완성
 - [x] M8: LlmEngine 인터페이스화 + Gemini 온라인 엔진 추가
-  - domain/llm/LlmEngineInterface.kt 신설
-  - LlmEngine.kt → OnDeviceLlmEngine.kt 개명 + 인터페이스 구현
-  - GeminiLlmEngine.kt 구현 (google-generativeai SDK)
-  - domain/model/EngineMode.kt 신설
-  - ChatViewModel 필드 타입 교체
-  - build.gradle.kts: generativeai 의존성 + GEMINI_API_KEY BuildConfig 추가
 - [x] M9: Room DB + ConversationRepository
-  - ksp 플러그인 + Room 의존성 추가
-  - ConversationEntity, MessageEntity, DAO 2개, DB 클래스, Mapper 구현
-  - ConversationRepository 인터페이스 + Impl
-  - ChatViewModel에 대화 생성/메시지 저장 로직 추가
 - [x] M10: AppContainer + Application + DataStore
-  - AceChatApplication.kt, AppContainer.kt 구현
-  - UserPreferencesRepository.kt (DataStore Preferences)
-  - AndroidManifest.xml android:name 등록
-  - MainActivity에서 appContainer 통한 ViewModel Factory 구성
-  - datastore-preferences 의존성 추가
 - [x] M11: 멀티스크린 + Compose Navigation
-  - kotlin-serialization 플러그인 + navigation-compose 의존성 추가
-  - AceChatNavGraph.kt (route 정의 + NavHost)
-  - ConversationListScreen + ViewModel
-  - SettingsScreen + ViewModel (엔진 모드 토글)
-  - ChatScreen, ChatViewModel 수정 (conversationId 수신, 기존 메시지 로드)
-  - MainActivity 단순화 / OnDeviceLlmEngine 수명주기 AppContainer로 이전
 - [x] M12: 테스트 환경 구축 + 단위 테스트
-  - 테스트 의존성 추가 (kotlinx-coroutines-test, turbine, room-testing)
-  - Fake 구현체 작성
-    - FakeLlmEngine (LlmEngineInterface 구현)
-    - FakeConversationRepository (ConversationRepository 구현)
-    - FakeUserPreferencesRepository (DataStore 없이 Flow 기반)
-  - 단위 테스트 작성
-    - ChatViewModelTest (sendMessage 흐름, 상태 전이, 제목 자동 생성)
-    - ConversationRepositoryImplTest (Room in-memory DB, CRUD)
-    - SettingsViewModelTest (EngineMode 변경, Flow 방출)
-    - ConversationListViewModelTest (목록 로드, 삭제, 이름 변경)
-  - 테스트 불가 클래스 목록 확정 및 문서화
-    - SpeechRecognizerManager, TtsManager, OnDeviceLlmEngine
-    - ChatViewModel (STT/TTS Manager 직접 생성 구조로 인한 제약)
-  - ProGuard 규칙 점검 (Room, LiteRT-LM, Gemini SDK, Navigation)
-- [ ] M13 : 기능 고도화 
+- [ ] M13: 기능 고도화 — 세부 계획: `docs/backlog.md` 참조
+
+## 참조 문서
+- **기능 백로그 / 버그 / 기술 부채**: `docs/backlog.md`
+- **UX 리서치** (경쟁앱 분석, 트렌드, 포지셔닝): `docs/ux-strategy-report.md`
 
 ## 주의사항
 - Gallery 코드를 복사하지 말고 패턴을 참고해서 AceChat에 맞게 작성할 것
@@ -113,6 +83,9 @@ presentation/
 ## Agent 사용 규칙
 - 코드 작성/수정/리팩토링이 포함된 태스크는 반드시 subagent를 사용한다.
 - 단순 질문, 설명, 분석만 하는 경우는 메인 Claude가 직접 처리해도 된다.
+- M13 기능 착수 전: `project-planner`로 backlog 항목 검토 + 마일스톤 분해 후 진행.
+- **구현 중 새로운 버그·기술 부채·기능 아이디어를 발견하면 `docs/backlog.md`에 즉시 추가한다.**
+- **backlog.md 항목 구현 완료 시 해당 항목을 `[ ]` → `[x]`로 업데이트한다.**
 - UX 결정사항을 CLAUDE.md에 반영할 때는 아래 순서로 subagent를 호출한다:
   1. `android-architect` — UX 결정을 기술 언어로 해석 + 마일스톤 분해
   2. `project-planner` — 의존성 분석·우선순위 결정 + CLAUDE.md 업데이트

@@ -44,6 +44,7 @@ presentation/ # UI 레이어 (Screen, ViewModel, Components)
 3. 제안 시 항상 이유와 트레이드오프를 함께 설명
 4. 코드 예시는 AceChat 실제 클래스명과 패키지명을 사용
 5. 테스트 가능한 구조를 항상 염두에 둠
+6. 작업 중 새로운 기술 부채·설계 개선 사항·버그를 발견하면 `/Users/user/AndroidStudioProjects/AceChat/docs/backlog.md`의 "버그 / 기술 부채" 섹션에 추가한다
 
 # Persistent Agent Memory
 

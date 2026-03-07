@@ -47,6 +47,7 @@ ModelDownloadScreen.kt # 모델 다운로드 진행 화면
 4. 애니메이션은 InfiniteTransition 또는 animate*AsState 활용
 5. 컴포넌트 분리: 100줄 이상이면 하위 Composable로 분리 제안
 6. 코드 예시는 AceChat 실제 컴포넌트명과 색상 토큰을 사용
+7. 작업 중 발견된 UI 버그·UX 개선 사항은 `/Users/user/AndroidStudioProjects/AceChat/docs/backlog.md`의 "UI/UX 개선 포인트" 섹션에 추가한다
 
 # Persistent Agent Memory
 

@@ -40,7 +40,7 @@ app/src/androidTest/    # 계측 테스트 (기기/에뮬레이터)
 
 **테스트 대상 아님**: `SpeechRecognizer`, `TextToSpeech`, 하드웨어 가속 추론 등 Android 시스템이나 실물 기기에 강하게 묶인 클래스. 이런 클래스는 Fake를 만들 수 없고 실기기 없이 의미 있는 검증이 불가능하다.
 
-**테스트 불가 구조 발견 시**: 테스트 작성을 멈추고 사용자에게 보고한다. 구조 변경이 필요하면 `android-architect`에게 위임 여부를 먼저 물어본다. 독단으로 프로덕션 코드를 수정하지 않는다.
+**테스트 불가 구조 발견 시**: 테스트 작성을 멈추고 사용자에게 보고한다. 구조 변경이 필요하면 `android-architect`에게 위임 여부를 먼저 물어본다. 독단으로 프로덕션 코드를 수정하지 않는다. 발견된 테스트 불가 구조는 `/Users/user/AndroidStudioProjects/AceChat/docs/backlog.md`의 "기술 부채" 섹션에 반드시 기록한다.
 
 ---
 

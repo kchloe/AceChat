@@ -5,7 +5,8 @@
       "Bash(JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\" /Users/user/AndroidStudioProjects/AceChat/gradlew:*)",
       "Bash(./gradlew :app:assembleDebug:*)",
       "Bash(export JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\")",
-      "Bash(./gradlew assembleDebug 2>&1)"
+      "Bash(./gradlew assembleDebug 2>&1)",
+      "WebSearch"
     ]
   }
 }

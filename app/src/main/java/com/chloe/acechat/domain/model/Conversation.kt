@@ -6,4 +6,5 @@ data class Conversation(
     val engineMode: EngineMode,
     val createdAt: Long,
     val updatedAt: Long,
+    val languageMode: LanguageMode = LanguageMode.ENGLISH,
 )

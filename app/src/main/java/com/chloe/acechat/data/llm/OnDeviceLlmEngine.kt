@@ -2,6 +2,7 @@ package com.chloe.acechat.data.llm
 
 import android.util.Log
 import com.chloe.acechat.domain.llm.LlmEngineInterface
+import com.chloe.acechat.domain.model.LanguageMode
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -29,6 +30,7 @@ class OnDeviceLlmEngine(
     // When modelPath starts with /data/local/tmp, the app has no write access to that directory,
     // so the caller must supply a writable path (e.g. context.getExternalFilesDir(null)).
     private val cacheDir: String? = null,
+    private val systemPrompt: String = buildSystemPrompt(LanguageMode.ENGLISH),
 ) : LlmEngineInterface {
 
     private var engine: Engine? = null
@@ -55,7 +57,7 @@ class OnDeviceLlmEngine(
             val newEngine = Engine(engineConfig)
             newEngine.initialize()
 
-            val systemInstruction = Contents.of(listOf(Content.Text(SYSTEM_PROMPT)))
+            val systemInstruction = Contents.of(listOf(Content.Text(systemPrompt)))
             val newConversation = newEngine.createConversation(
                 ConversationConfig(
                     samplerConfig = SamplerConfig(
@@ -136,7 +138,7 @@ class OnDeviceLlmEngine(
         val eng = engine ?: return
         try {
             conversation?.close()
-            val systemInstruction = Contents.of(listOf(Content.Text(SYSTEM_PROMPT)))
+            val systemInstruction = Contents.of(listOf(Content.Text(systemPrompt)))
             conversation = eng.createConversation(
                 ConversationConfig(
                     samplerConfig = SamplerConfig(topK = 64, topP = 0.95, temperature = 1.0),

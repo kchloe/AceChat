@@ -89,8 +89,10 @@ class SpeechRecognizerManager(private val context: Context) {
     /**
      * 음성 인식을 시작한다.
      * 이미 [SttState.Listening] 상태라면 무시한다.
+     *
+     * @param locale 인식 언어. 기본값은 [Locale.ENGLISH].
      */
-    fun startListening() {
+    fun startListening(locale: Locale = Locale.ENGLISH) {
         if (_sttState.value is SttState.Listening) return
 
         if (speechRecognizer == null) {
@@ -100,7 +102,7 @@ class SpeechRecognizerManager(private val context: Context) {
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.ENGLISH.toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             // 최소 발화 길이: 너무 짧은 소음을 음성으로 오인하지 않도록 100ms 유지
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 100L)

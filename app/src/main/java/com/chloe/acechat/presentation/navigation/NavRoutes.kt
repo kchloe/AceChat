@@ -9,7 +9,7 @@ object ConversationList
 object Settings
 
 @Serializable
-data class ModelDownload(val conversationId: String, val engineMode: String)
+data class ModelDownload(val conversationId: String, val engineMode: String, val languageMode: String)
 
 @Serializable
-data class Chat(val conversationId: String, val engineMode: String)
+data class Chat(val conversationId: String, val engineMode: String, val languageMode: String)

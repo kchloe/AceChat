@@ -6,6 +6,7 @@ import com.chloe.acechat.data.db.mapper.toEntity
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.Conversation
 import com.chloe.acechat.domain.model.EngineMode
+import com.chloe.acechat.domain.model.LanguageMode
 import com.chloe.acechat.domain.repository.ConversationRepository
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +22,15 @@ class ConversationRepositoryImpl(
             entities.map { it.toDomain() }
         }
 
-    override suspend fun createConversation(engineMode: EngineMode): Conversation {
+    override fun getConversationsByLanguage(languageMode: LanguageMode): Flow<List<Conversation>> =
+        db.conversationDao()
+            .getConversationsByLanguage(languageMode.name)
+            .map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun createConversation(
+        engineMode: EngineMode,
+        languageMode: LanguageMode,
+    ): Conversation {
         val now = System.currentTimeMillis()
         val conversation = Conversation(
             id = UUID.randomUUID().toString(),
@@ -29,6 +38,7 @@ class ConversationRepositoryImpl(
             engineMode = engineMode,
             createdAt = now,
             updatedAt = now,
+            languageMode = languageMode,
         )
         db.conversationDao().insertConversation(conversation.toEntity())
         return conversation

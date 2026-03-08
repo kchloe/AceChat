@@ -2,6 +2,7 @@ package com.chloe.acechat.data.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.chloe.acechat.domain.model.LanguageMode
 
 @Entity(tableName = "conversations")
 data class ConversationEntity(
@@ -10,4 +11,5 @@ data class ConversationEntity(
     val engineMode: String,
     val createdAt: Long,
     val updatedAt: Long,
+    val languageMode: String = LanguageMode.ENGLISH.name,
 )

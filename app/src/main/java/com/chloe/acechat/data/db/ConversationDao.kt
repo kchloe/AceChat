@@ -13,6 +13,9 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations ORDER BY updatedAt DESC")
     fun getAllConversations(): Flow<List<ConversationEntity>>
 
+    @Query("SELECT * FROM conversations WHERE languageMode = :languageMode ORDER BY updatedAt DESC")
+    fun getConversationsByLanguage(languageMode: String): Flow<List<ConversationEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertConversation(conversation: ConversationEntity)
 

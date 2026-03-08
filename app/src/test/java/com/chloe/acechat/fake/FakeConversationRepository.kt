@@ -3,6 +3,7 @@ package com.chloe.acechat.fake
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.Conversation
 import com.chloe.acechat.domain.model.EngineMode
+import com.chloe.acechat.domain.model.LanguageMode
 import com.chloe.acechat.domain.repository.ConversationRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,13 @@ class FakeConversationRepository(
 
     override fun getAllConversations(): Flow<List<Conversation>> = conversationsFlow
 
-    override suspend fun createConversation(engineMode: EngineMode): Conversation {
+    override fun getConversationsByLanguage(languageMode: LanguageMode): Flow<List<Conversation>> =
+        conversationsFlow.map { list -> list.filter { it.languageMode == languageMode } }
+
+    override suspend fun createConversation(
+        engineMode: EngineMode,
+        languageMode: LanguageMode,
+    ): Conversation {
         if (shouldThrow) throw RuntimeException("FakeConversationRepository: createConversation failed")
         createConversationCallCount++
         val now = System.currentTimeMillis()
@@ -45,6 +52,7 @@ class FakeConversationRepository(
             engineMode = engineMode,
             createdAt = now,
             updatedAt = now,
+            languageMode = languageMode,
         )
         conversationsFlow.update { it + conversation }
         return conversation

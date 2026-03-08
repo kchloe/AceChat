@@ -6,28 +6,47 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.chloe.acechat.data.llm.MODEL_FILE_NAME
 import com.chloe.acechat.domain.preferences.UserPreferencesRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import com.chloe.acechat.domain.model.Conversation
 import com.chloe.acechat.domain.model.EngineMode
+import com.chloe.acechat.domain.model.LanguageMode
 import com.chloe.acechat.domain.repository.ConversationRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ConversationListViewModel(
     application: Application,
     private val conversationRepository: ConversationRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
 
-    val conversations: StateFlow<List<Conversation>> = conversationRepository
-        .getAllConversations()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList(),
-        )
+    val conversations: StateFlow<List<Conversation>> =
+        userPreferencesRepository.languageMode
+            .flatMapLatest { lang ->
+                conversationRepository.getConversationsByLanguage(lang)
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    val hasOtherLanguageConversations: StateFlow<Boolean> =
+        combine(
+            conversationRepository.getAllConversations(),
+            userPreferencesRepository.languageMode,
+        ) { all, lang -> all.any { it.languageMode != lang } }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = false,
+            )
 
     val engineMode: StateFlow<EngineMode> = userPreferencesRepository.engineMode
         .stateIn(
@@ -36,10 +55,17 @@ class ConversationListViewModel(
             initialValue = EngineMode.ON_DEVICE,
         )
 
-    suspend fun createNewConversation(): String {
+    val languageMode: StateFlow<LanguageMode> = userPreferencesRepository.languageMode
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = LanguageMode.ENGLISH,
+        )
+
+    suspend fun createNewConversation(): Conversation {
         val mode = userPreferencesRepository.engineMode.first()
-        val conversation = conversationRepository.createConversation(mode)
-        return conversation.id
+        val language = userPreferencesRepository.languageMode.first()
+        return conversationRepository.createConversation(mode, language)
     }
 
     suspend fun deleteConversation(id: String) {

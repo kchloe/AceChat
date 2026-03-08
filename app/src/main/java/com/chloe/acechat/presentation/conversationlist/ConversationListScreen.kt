@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chloe.acechat.domain.model.Conversation
 import com.chloe.acechat.domain.model.EngineMode
+import com.chloe.acechat.domain.model.LanguageMode
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -64,27 +65,37 @@ private val dateTimeFormatter = SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA
 @Composable
 fun ConversationListScreen(
     viewModel: ConversationListViewModel,
-    onOpenChat: (conversationId: String, engineMode: EngineMode) -> Unit,
+    onOpenChat: (conversationId: String, engineMode: EngineMode, languageMode: LanguageMode) -> Unit,
     onOpenSettings: () -> Unit,
-    onNeedModelDownload: (conversationId: String, engineMode: EngineMode) -> Unit,
+    onNeedModelDownload: (conversationId: String, engineMode: EngineMode, languageMode: LanguageMode) -> Unit,
 ) {
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val engineMode by viewModel.engineMode.collectAsStateWithLifecycle()
+    val languageMode by viewModel.languageMode.collectAsStateWithLifecycle()
+    val hasOtherLanguageConversations by viewModel.hasOtherLanguageConversations.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                    Column {
                         Text(text = "AceChat")
-                        EngineBadge(engineMode = engineMode)
+                        Text(
+                            text = when (languageMode) {
+                                LanguageMode.ENGLISH -> "Practicing English \uD83C\uDDFA\uD83C\uDDF8"
+                                LanguageMode.KOREAN -> "한국어 연습 중 \uD83C\uDDF0\uD83C\uDDF7"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 },
                 actions = {
+                    EngineBadge(
+                        engineMode = engineMode,
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
                     IconButton(
                         onClick = onOpenSettings,
                         modifier = Modifier.semantics {
@@ -103,12 +114,17 @@ fun ConversationListScreen(
             FloatingActionButton(
                 onClick = {
                     scope.launch {
-                        val id = viewModel.createNewConversation()
-                        val mode = viewModel.engineMode.value
+                        // createNewConversation()이 반환하는 Conversation에서 engineMode/languageMode를
+                        // 읽어 사용한다. StateFlow 스냅샷(.value)은 DataStore에서 실제로 읽은 값과
+                        // 다를 수 있으므로 (초기값 vs 저장값), 생성 시 사용된 값을 그대로 전달해야
+                        // DB에 저장된 engineMode/languageMode와 네비게이션 파라미터가 일치한다.
+                        val conversation = viewModel.createNewConversation()
+                        val mode = conversation.engineMode
+                        val language = conversation.languageMode
                         if (mode == EngineMode.ON_DEVICE && !viewModel.isModelReady()) {
-                            onNeedModelDownload(id, mode)
+                            onNeedModelDownload(conversation.id, mode, language)
                         } else {
-                            onOpenChat(id, mode)
+                            onOpenChat(conversation.id, mode, language)
                         }
                     }
                 },
@@ -130,6 +146,8 @@ fun ConversationListScreen(
         ) {
             if (conversations.isEmpty()) {
                 EmptyConversationState(
+                    languageMode = languageMode,
+                    hasOtherLanguageConversations = hasOtherLanguageConversations,
                     modifier = Modifier.align(Alignment.Center),
                 )
             } else {
@@ -147,6 +165,7 @@ fun ConversationListScreen(
         }
     }
 }
+
 
 @Composable
 private fun EngineBadge(
@@ -178,7 +197,7 @@ private fun EngineBadge(
 @Composable
 private fun ConversationList(
     conversations: List<Conversation>,
-    onOpenChat: (conversationId: String, engineMode: EngineMode) -> Unit,
+    onOpenChat: (conversationId: String, engineMode: EngineMode, languageMode: LanguageMode) -> Unit,
     onDeleteConversation: (id: String) -> Unit,
     onRenameConversation: (id: String, newTitle: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -190,7 +209,7 @@ private fun ConversationList(
         ) { conversation ->
             ConversationItem(
                 conversation = conversation,
-                onClick = { onOpenChat(conversation.id, conversation.engineMode) },
+                onClick = { onOpenChat(conversation.id, conversation.engineMode, conversation.languageMode) },
                 onDelete = { onDeleteConversation(conversation.id) },
                 onRename = { newTitle -> onRenameConversation(conversation.id, newTitle) },
             )
@@ -247,11 +266,16 @@ private fun ConversationItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = dateTimeFormatter.format(Date(conversation.updatedAt)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = dateTimeFormatter.format(Date(conversation.updatedAt)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         IconButton(
             onClick = { showBottomSheet = true },
@@ -409,13 +433,31 @@ private fun RenameDialog(
 
 @Composable
 private fun EmptyConversationState(
+    languageMode: LanguageMode,
+    hasOtherLanguageConversations: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = "No conversations yet.\nTap + to start.",
+    Column(
         modifier = modifier.padding(horizontal = 32.dp),
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-    )
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "No conversations yet.\nTap + to start.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (hasOtherLanguageConversations) {
+            Text(
+                text = when (languageMode) {
+                    LanguageMode.ENGLISH -> "Your Korean conversations are saved.\nSwitch language in Settings to access them."
+                    LanguageMode.KOREAN -> "영어 대화 내역이 저장되어 있어요.\n설정에서 언어를 변경하면 다시 볼 수 있어요."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
 }

@@ -12,6 +12,7 @@ import com.chloe.acechat.domain.tts.TtsManagerInterface
 import com.chloe.acechat.domain.llm.LlmEngineInterface
 import com.chloe.acechat.domain.model.ChatMessage
 import com.chloe.acechat.domain.model.ConversationState
+import com.chloe.acechat.domain.model.LanguageMode
 import com.chloe.acechat.domain.model.MessageRole
 import com.chloe.acechat.domain.model.MessageType
 import com.chloe.acechat.domain.repository.ConversationRepository
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import java.util.UUID
 
 private const val TAG = "ChatViewModel"
@@ -65,6 +67,9 @@ class ChatViewModel(
     // 현재 대화의 제목. 첫 메시지 전송 시 업데이트 여부 판단에 사용.
     private var conversationTitle: String = DEFAULT_CONVERSATION_TITLE
 
+    // 현재 대화의 언어 모드. STT locale 결정에 사용.
+    private var conversationLanguageMode: LanguageMode = LanguageMode.ENGLISH
+
     init {
         loadExistingMessages()
         initializeEngine()
@@ -88,6 +93,7 @@ class ChatViewModel(
                     .find { it.id == conversationId }
                 if (conversation != null) {
                     conversationTitle = conversation.title
+                    conversationLanguageMode = conversation.languageMode
                 }
 
                 val existing = conversationRepository.getMessages(conversationId).first()
@@ -179,7 +185,11 @@ class ChatViewModel(
         if (_conversationState.value !is ConversationState.Idle) return
         if (speechRecognizerManager.sttState.value is SttState.Listening) return
         viewModelScope.launch(Dispatchers.Main) {
-            speechRecognizerManager.startListening()
+            val locale = when (conversationLanguageMode) {
+                LanguageMode.ENGLISH -> Locale.ENGLISH
+                LanguageMode.KOREAN -> Locale.KOREAN
+            }
+            speechRecognizerManager.startListening(locale)
         }
     }
 
@@ -271,6 +281,11 @@ class ChatViewModel(
                 val ttsText = extractTtsText(finalContent, messageType)
                 withContext(Dispatchers.Main) {
                     if (ttsText.isNotEmpty()) {
+                        // _playingMessageId를 speak() 보다 먼저 설정해야 한다.
+                        // observeTtsState()는 TtsState.Idle 전환 시 _playingMessageId를 null로
+                        // 초기화하므로, speak() 이전에 playingMessageId가 확정되어 있어야
+                        // onStart() 콜백이 Speaking으로 바꾸기 전 짧은 Idle 구간에서
+                        // playingMessageId가 초기화되는 경쟁 조건을 방지할 수 있다.
                         _playingMessageId.value = botId
                         ttsManager.speak(ttsText)
                     }

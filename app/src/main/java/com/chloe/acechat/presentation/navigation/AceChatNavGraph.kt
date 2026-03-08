@@ -9,6 +9,7 @@ import androidx.navigation.toRoute
 import com.chloe.acechat.data.tts.TtsManagerImpl
 import com.chloe.acechat.di.AppContainer
 import com.chloe.acechat.domain.model.EngineMode
+import com.chloe.acechat.domain.model.LanguageMode
 import com.chloe.acechat.presentation.chat.ChatScreen
 import com.chloe.acechat.presentation.chat.ChatViewModel
 import com.chloe.acechat.presentation.chat.ModelDownloadScreen
@@ -34,14 +35,14 @@ fun AceChatNavGraph(appContainer: AppContainer) {
             }
             ConversationListScreen(
                 viewModel = vm,
-                onOpenChat = { conversationId, engineMode ->
-                    navController.navigate(Chat(conversationId, engineMode.name))
+                onOpenChat = { conversationId, engineMode, languageMode ->
+                    navController.navigate(Chat(conversationId, engineMode.name, languageMode.name))
                 },
                 onOpenSettings = {
                     navController.navigate(Settings)
                 },
-                onNeedModelDownload = { conversationId, engineMode ->
-                    navController.navigate(ModelDownload(conversationId, engineMode.name))
+                onNeedModelDownload = { conversationId, engineMode, languageMode ->
+                    navController.navigate(ModelDownload(conversationId, engineMode.name, languageMode.name))
                 },
             )
         }
@@ -49,8 +50,9 @@ fun AceChatNavGraph(appContainer: AppContainer) {
         composable<Chat> { backStackEntry ->
             val route = backStackEntry.toRoute<Chat>()
             val mode = EngineMode.valueOf(route.engineMode)
+            val language = LanguageMode.valueOf(route.languageMode)
             val vm = viewModel(key = route.conversationId) {
-                val engine = appContainer.getLlmEngine(mode)
+                val engine = appContainer.getLlmEngine(mode, language)
                 ChatViewModel.Factory(
                     application = appContainer.application,
                     llmEngine = engine,
@@ -84,7 +86,10 @@ fun AceChatNavGraph(appContainer: AppContainer) {
                 viewModel = vm,
                 onDownloadCompleted = {
                     // 다운로드 완료 후 ModelDownload를 백스택에서 제거하고 Chat으로 이동.
-                    navController.navigate(Chat(route.conversationId, route.engineMode)) {
+                    // languageMode는 ModelDownload 라우트로부터 전달받은 값을 그대로 사용한다.
+                    navController.navigate(
+                        Chat(route.conversationId, route.engineMode, route.languageMode)
+                    ) {
                         popUpTo<ModelDownload> { inclusive = true }
                     }
                 },

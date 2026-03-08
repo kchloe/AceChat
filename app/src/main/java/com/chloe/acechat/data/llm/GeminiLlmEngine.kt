@@ -3,6 +3,7 @@ package com.chloe.acechat.data.llm
 import android.util.Log
 import com.chloe.acechat.BuildConfig
 import com.chloe.acechat.domain.llm.LlmEngineInterface
+import com.chloe.acechat.domain.model.LanguageMode
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.Content
 import com.google.ai.client.generativeai.type.content
@@ -14,7 +15,9 @@ import kotlinx.coroutines.flow.flow
 private const val TAG = "GeminiLlmEngine"
 private const val MODEL_NAME = "gemini-2.5-flash"
 
-class GeminiLlmEngine : LlmEngineInterface {
+class GeminiLlmEngine(
+    private val systemPrompt: String = buildSystemPrompt(LanguageMode.ENGLISH),
+) : LlmEngineInterface {
 
     private val model: GenerativeModel = GenerativeModel(
         modelName = MODEL_NAME,
@@ -24,7 +27,7 @@ class GeminiLlmEngine : LlmEngineInterface {
             topK = 64
             topP = 0.95f
         },
-        systemInstruction = content { text(SYSTEM_PROMPT) },
+        systemInstruction = content { text(systemPrompt) },
     )
 
     // Mutable history of the current conversation session.
